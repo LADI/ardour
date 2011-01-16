@@ -141,6 +141,7 @@ class LV2Plugin : public ARDOUR::Plugin
 	float*          _latency_control_port;  ///< Special output set by plugin
 	bool            _was_activated;
 	vector<bool>    _port_is_input;
+	map<string,uint32_t>     _port_indices;
 
 	typedef struct { const void* (*extension_data)(const char* uri); } LV2_DataAccess;
 	LV2_DataAccess _data_access_extension_data;

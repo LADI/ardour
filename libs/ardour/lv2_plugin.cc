@@ -171,8 +171,10 @@ LV2Plugin::init (LV2World& world, LilvPlugin* plugin, nframes_t rate)
 	designated_input (LILV_NS_LV2 "freeWheeling", params, (void**)&_freewheel_control_port);
 
 	for (uint32_t i = 0; i < num_ports; ++i) {
+		const LilvPort* port = lilv_plugin_get_port_by_index(plugin, i);
+		const LilvNode* sym = lilv_port_get_symbol(_plugin, port);
+		_port_indices.insert(std::make_pair(lilv_node_as_string(sym), i));
 		if (parameter_is_control(i)) {
-			const LilvPort* port = lilv_plugin_get_port_by_index(plugin, i);
 			LilvNode* def;
 			lilv_port_get_range(plugin, port, &def, NULL, NULL);
 			_defaults[i] = def ? lilv_node_as_float(def) : 0.0f;
@@ -392,8 +394,8 @@ LV2Plugin::set_state(const XMLNode& node)
 	XMLProperty *prop;
 	XMLNodeConstIterator iter;
 	XMLNode *child;
-	const char *port;
-	const char *data;
+	const char *sym;
+	const char *value;
 	uint32_t port_id;
 	LocaleGuard lg (X_("POSIX"));
 
@@ -408,22 +410,29 @@ LV2Plugin::set_state(const XMLNode& node)
 
 		child = *iter;
 
-		if ((prop = child->property("number")) != 0) {
-			port = prop->value().c_str();
+		if ((prop = child->property("symbol")) != 0) {
+			sym = prop->value().c_str();
 		} else {
-			warning << _("LV2: no lv2 port number") << endmsg;
+			warning << _("LV2: port has no symbol, ignored") << endmsg;
+			continue;
+		}
+
+		map<string,uint32_t>::iterator i = _port_indices.find(sym);
+		if (i != _port_indices.end()) {
+			port_id = i->second;
+		} else {
+			warning << _("LV2: port has unknown index, ignored") << endmsg;
 			continue;
 		}
 
 		if ((prop = child->property("value")) != 0) {
-			data = prop->value().c_str();
+			value = prop->value().c_str();
 		} else {
-			warning << _("LV2: no lv2 port data") << endmsg;
+			warning << _("LV2: port has no value, ignored") << endmsg;
 			continue;
 		}
 
-		sscanf (port, "%" PRIu32, &port_id);
-		set_parameter (port_id, atof(data));
+		set_parameter (port_id, atof(value));
 	}
 	
 	latency_compute_run ();
