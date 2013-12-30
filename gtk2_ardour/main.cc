@@ -485,6 +485,27 @@ sigpipe_handler (int sig)
 	}
 }
 
+static bool ladish_L1_save_request = false;
+
+static gboolean
+maybe_ladish_L1_save (void* /* ignored */)
+{
+	if (ladish_L1_save_request) {
+		cout << "ladish L1 save request" << endl;
+		ladish_L1_save_request = false;
+		ARDOUR_UI::instance()->save_state("");
+	}
+
+	return true;
+}
+
+static void
+sigusr1_handler (int sig)
+{
+	//cout << "SIGUSR1 received!" << endl;
+	ladish_L1_save_request = true;
+}
+
 #ifdef VST_SUPPORT
 
 extern int gui_init (int* argc, char** argv[]);
@@ -573,6 +594,12 @@ int main (int argc, char* argv[])
 
 	if (::signal (SIGPIPE, sigpipe_handler)) {
 		cerr << _("Cannot install SIGPIPE error handler") << endl;
+	}
+
+	g_timeout_add (300, maybe_ladish_L1_save, 0);
+
+	if (::signal (SIGUSR1, sigusr1_handler)) {
+		cerr << _("Cannot install SIGUSR1 error handler") << endl;
 	}
 
         try { 
